@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Skivbrickan — vinylidentifiering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#111013;
+    --black-soft:#19181b;
+    --cream:#F2E9D8;
+    --cream-dim:#c9c0ae;
+    --red:#B23A2E;
+    --red-dim:#7c2820;
+    --grey:#5c594f;
+    --gold:#C9A227;
+    --green:#4C7A5E;
+    --line: rgba(242,233,216,0.12);
+    --radius: 2px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--black);
+    color:var(--cream);
+    font-family:'Space Mono', monospace;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    max-width:560px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:
+      radial-gradient(circle at 50% -10%, rgba(178,58,46,0.10), transparent 55%),
+      var(--black);
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+
+  /* ---------- header ---------- */
+  header{
+    padding:22px 20px 16px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .logo-disc{
+    width:34px;height:34px;border-radius:50%;
+    background:
+      radial-gradient(circle at center, var(--cream) 0 10%, var(--black) 11% 13%, var(--grey) 14% 15%, var(--black) 16% 17%, var(--grey) 18% 19%, var(--black) 20% 100%);
+    flex:0 0 auto;
+    box-shadow: inset 0 0 0 1px rgba(242,233,216,0.15);
+  }
+  header h1{
+    font-family:'Big Shoulders', sans-serif;
+    font-weight:900;
+    font-size:26px;
+    letter-spacing:0.5px;
+    margin:0;
+    line-height:0.9;
+    text-transform:uppercase;
+  }
+  header p{
+    margin:2px 0 0;
+    font-size:10px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--cream-dim);
+  }
+
+  /* ---------- tabs ---------- */
+  nav.tabs{
+    display:flex;
+    border-bottom:1px solid var(--line);
+    position:sticky;
+    top:0;
+    background:var(--black);
+    z-index:10;
+  }
+  nav.tabs button{
+    flex:1;
+    background:none;
+    border:none;
+    color:var(--cream-dim);
+    font-family:'Big Shoulders', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:14px 4px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  nav.tabs button.active{
+    color:var(--cream);
+    border-bottom-color:var(--red);
+  }
+  nav.tabs button:focus-visible{ outline:2px solid var(--gold); outline-offset:-2px; }
+
+  main{ flex:1; padding:20px; padding-bottom:60px; }
+  section.view{ display:none; animation:fade .2s ease; }
+  section.view.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  h2.section-title{
+    font-family:'Big Shoulders', sans-serif;
+    font-size:15px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  h2.section-title::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+
+  /* ---------- scan viewfinder (signature element) ---------- */
+  .disc-frame{
+    position:relative;
+    width:min(78vw, 300px);
+    aspect-ratio:1;
+    margin:8px auto 18px;
+    border-radius:50%;
+    overflow:hidden;
+    background:var(--black-soft);
+    box-shadow: 0 0 0 1px var(--line), 0 20px 40px -20px rgba(0,0,0,0.8);
+  }
+  .disc-frame video, .disc-frame img.captured{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+  }
+  .disc-frame .grooves{
+    position:absolute; inset:0;
+    border-radius:50%;
+    pointer-events:none;
+    background:
+      repeating-radial-gradient(circle at center,
+        rgba(0,0,0,0) 0px, rgba(0,0,0,0) 7px,
+        rgba(0,0,0,0.28) 7.5px, rgba(0,0,0,0) 8px);
+    mix-blend-mode:multiply;
+  }
+  .disc-frame .label-hole{
+    position:absolute;
+    left:50%; top:50%;
+    width:26%; height:26%;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:var(--red);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 2px var(--black), 0 0 0 3px rgba(242,233,216,0.2);
+  }
+  .disc-frame .label-hole::after{
+    content:"";
+    width:14%; height:14%;
+    min-width:6px; min-height:6px;
+    border-radius:50%;
+    background:var(--black);
+  }
+  .disc-frame.scanning .grooves{ animation:spin 3.2s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ .disc-frame.scanning .grooves{ animation:none; } }
+
+  .disc-frame .placeholder{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--grey);
+    font-size:11px;
+    letter-spacing:1px;
+    text-align:center;
+    padding:20px;
+    text-transform:uppercase;
+  }
+
+  .scan-controls{ display:flex; flex-direction:column; gap:10px; align-items:center; }
+
+  button.primary{
+    background:var(--red);
+    color:var(--cream);
+    border:none;
+    font-family:'Big Shoulders', sans-serif;
+    font-weight:700;
+    font-size:16px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:13px 22px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    width:100%;
+    max-width:320px;
+  }
+  button.primary:hover{ background:var(--red-dim); }
+  button.primary:disabled{ opacity:0.4; cursor:not-allowed; }
+  button.secondary{
+    background:none;
+    color:var(--cream);
+    border:1px solid var(--line);
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.5px;
+    padding:10px 16px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    width:100%;
+    max-width:320px;
+  }
+  button.secondary:hover{ border-color:var(--cream-dim); }
+  button:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .file-input{ display:none; }
+
+  .divider-word{
+    display:flex; align-items:center; gap:10px;
+    color:var(--grey); font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    max-width:320px; margin:4px auto;
+  }
+  .divider-word::before, .divider-word::after{ content:""; flex:1; height:1px; background:var(--line); }
+
+  .manual-code{
+    display:flex; gap:8px; max-width:320px; margin:0 auto;
+  }
+  input[type=text], input[type=password], select{
+    background:var(--black-soft);
+    border:1px solid var(--line);
+    color:var(--cream);
+    font-family:'Space Mono', monospace;
+    font-size:14px;
+    padding:11px 12px;
+    border-radius:var(--radius);
+    width:100%;
+  }
+  input::placeholder{ color:var(--grey); }
+  input:focus-visible, select:focus-visible{ outline:2px solid var(--gold); outline-offset:1px; }
+
+  .status-line{
+    text-align:center;
+    font-size:11px;
+    letter-spacing:1px;
+    color:var(--cream-dim);
+    margin-top:12px;
+    min-height:14px;
+    text-transform:uppercase;
+  }
+  .status-line.err{ color:#e08a7d; }
+  .status-line.ok{ color:var(--green); }
+
+  /* ---------- search tab ---------- */
+  .search-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .search-row input{ flex:1; }
+  .candidate-list{ display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); }
+  .candidate{
+    background:var(--black-soft);
+    display:flex; gap:12px; padding:10px; cursor:pointer; align-items:center;
+    text-align:left; border:none; width:100%; color:var(--cream); font-family:'Space Mono',monospace;
+  }
+  .candidate:hover{ background:#221f22; }
+  .candidate img{ width:44px; height:44px; object-fit:cover; flex:0 0 auto; background:var(--black); }
+  .candidate .meta{ min-width:0; }
+  .candidate .meta .t{ font-size:13px; color:var(--cream); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .candidate .meta .s{ font-size:11px; color:var(--cream-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ---------- result card ---------- */
+  .result-card{
+    border:1px solid var(--line);
+    background:var(--black-soft);
+    margin-top:18px;
+  }
+  .result-card .art{
+    width:100%; aspect-ratio:1; object-fit:cover; display:block; background:var(--black);
+  }
+  .result-card .art-fallback{
+    width:100%; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    color:var(--grey); font-size:11px; letter-spacing:1px; text-transform:uppercase;
+  }
+  .result-card .body{ padding:18px; }
+  .result-card .title{
+    font-family:'Big Shoulders', sans-serif;
+    font-weight:900;
+    font-size:24px;
+    line-height:1;
+    text-transform:uppercase;
+    margin:0 0 4px;
+  }
+  .result-card .artist{
+    color:var(--gold);
+    font-size:14px;
+    margin:0 0 16px;
+  }
+  .data-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px 16px;
+    margin-bottom:16px;
+  }
+  .data-grid .field .k{
+    font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--grey); margin-bottom:2px;
+  }
+  .data-grid .field .v{ font-size:13px; color:var(--cream); }
+  .price-box{
+    border-top:1px dashed var(--line);
+    padding-top:14px;
+    margin-top:2px;
+  }
+  .price-box .k{ font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--grey); margin-bottom:6px; }
+  .price-scale{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .price-scale .p{ text-align:center; flex:1; }
+  .price-scale .p .amt{ font-family:'Big Shoulders', sans-serif; font-weight:700; font-size:18px; color:var(--cream); }
+  .price-scale .p .lbl{ font-size:9px; color:var(--grey); letter-spacing:1px; text-transform:uppercase; }
+  .price-note{ font-size:10px; color:var(--grey); margin-top:10px; line-height:1.5; }
+  .discogs-link{
+    display:inline-block; margin-top:14px; font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--cream-dim); text-decoration:none; border-bottom:1px solid var(--grey);
+  }
+  .discogs-link:hover{ color:var(--cream); border-color:var(--cream); }
+
+  /* ---------- history ---------- */
+  .hist-item{
+    display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); align-items:center;
+    cursor:pointer; background:none; border-left:none; border-right:none; border-top:none; width:100%; text-align:left;
+    color:var(--cream); font-family:'Space Mono',monospace;
+  }
+  .hist-item img{ width:46px; height:46px; object-fit:cover; background:var(--black-soft); flex:0 0 auto; }
+  .hist-item .meta .t{ font-size:13px; }
+  .hist-item .meta .s{ font-size:11px; color:var(--cream-dim); }
+  .hist-item .meta .d{ font-size:9px; color:var(--grey); margin-top:2px; letter-spacing:1px; }
+  .empty-state{ color:var(--grey); font-size:12px; text-align:center; padding:40px 10px; letter-spacing:0.5px; line-height:1.6; }
+
+  /* ---------- settings ---------- */
+  .field-group{ margin-bottom:20px; }
+  .field-group label{ display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--cream-dim); margin-bottom:6px; }
+  .field-help{ font-size:11px; color:var(--grey); margin-top:6px; line-height:1.6; }
+  .field-help a{ color:var(--gold); }
+  .save-msg{ font-size:11px; color:var(--green); margin-top:8px; height:14px; }
+
+  .spinner{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid var(--line); border-top-color:var(--red);
+    animation:spin .8s linear infinite;
+    display:inline-block; vertical-align:middle; margin-right:6px;
+  }
+
+  footer.disclaimer{
+    text-align:center; font-size:9px; color:var(--grey); letter-spacing:0.5px; padding:0 20px 24px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo-disc" aria-hidden="true"></div>
+    <div>
+      <h1>Skivbrickan</h1>
+      <p>Vinylidentifiering &amp; prisguide</p>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-view="scan" role="tab" aria-selected="true">Skanna</button>
+    <button class="tab-btn" data-view="search" role="tab" aria-selected="false">Sök</button>
+    <button class="tab-btn" data-view="history" role="tab" aria-selected="false">Historik</button>
+    <button class="tab-btn" data-view="settings" role="tab" aria-selected="false">Inställningar</button>
+  </nav>
+
+  <main>
+
+    <!-- SCAN VIEW -->
+    <section class="view active" id="view-scan">
+      <h2 class="section-title">Scanna streckkod eller skivetikett</h2>
+      <p style="font-size:12px; color:var(--cream-dim); line-height:1.6; margin-top:-6px;">
+        Tryck på Scanna och rikta kameran mot streckkoden på skivans baksida eller mot etiketten i mitten av skivan.
+        Hittar appen ingen streckkod automatiskt kan du istället ladda upp en bild eller skriva in koden för hand nedan.
+      </p>
+      <div class="disc-frame" id="discFrame">
+        <div class="placeholder" id="camPlaceholder">Kameran är av</div>
+        <video id="video" playsinline muted style="display:none"></video>
+        <img class="captured" id="capturedImg" style="display:none" alt="">
+        <div class="grooves"></div>
+        <div class="label-hole"></div>
+      </div>
+
+      <div class="scan-controls">
+        <button class="primary" id="btnStartCam">Scanna</button>
+        <button class="secondary" id="btnStopCam" style="display:none">Stäng kamera</button>
+        <input type="file" accept="image/*" capture="environment" class="file-input" id="fileBarcode">
+        <button class="secondary" id="btnUploadBarcode">Eller ladda upp bild på streckkod</button>
+
+        <div class="divider-word">eller</div>
+
+        <div class="manual-code">
+          <input type="text" id="manualCode" placeholder="Skriv streckkod manuellt" inputmode="numeric">
+          <button class="secondary" style="width:auto; max-width:none; white-space:nowrap;" id="btnManualCode">Sök</button>
+        </div>
+      </div>
+
+      <div class="status-line" id="scanStatus"></div>
+
+      <h2 class="section-title" style="margin-top:34px">Läs etikett</h2>
+      <p style="font-size:12px; color:var(--cream-dim); line-height:1.6; margin-top:-6px;">
+        Fota etiketten (mitten av skivan). Appen läser texten och föreslår en sökning.
+      </p>
+      <input type="file" accept="image/*" capture="environment" class="file-input" id="fileLabel">
+      <button class="secondary" id="btnUploadLabel" style="max-width:320px; margin:10px auto 0; display:block;">Fota / ladda upp etikett</button>
+      <div class="status-line" id="ocrStatus"></div>
+
+      <div id="scanResultSlot"></div>
+    </section>
+
+    <!-- SEARCH VIEW -->
+    <section class="view" id="view-search">
+      <h2 class="section-title">Sök manuellt</h2>
+      <div class="search-row">
+        <input type="text" id="searchQuery" placeholder="Artist, titel eller katalognummer">
+        <button class="secondary" style="width:auto; max-width:none; white-space:nowrap;" id="btnSearch">Sök</button>
+      </div>
+      <div class="status-line" id="searchStatus"></div>
+      <div class="candidate-list" id="candidateList"></div>
+      <div id="searchResultSlot"></div>
+    </section>
+
+    <!-- HISTORY VIEW -->
+    <section class="view" id="view-history">
+      <h2 class="section-title">Tidigare uppslag</h2>
+      <div id="historyList"></div>
+    </section>
+
+    <!-- SETTINGS VIEW -->
+    <section class="view" id="view-settings">
+      <h2 class="section-title">Discogs-token</h2>
+      <div class="field-group">
+        <label for="discogsToken">Personlig åtkomsttoken</label>
+        <input type="password" id="discogsToken" placeholder="Klistra in din Discogs-token">
+        <div class="field-help">
+          Krävs för sökning och prisdata. Skapa en gratis token på
+          <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noopener">discogs.com/settings/developers</a>
+          (logga in → Generate new token). Token sparas bara i din egen webbläsare/enhet.
+        </div>
+        <div class="save-msg" id="tokenSaveMsg"></div>
+      </div>
+
+      <h2 class="section-title">Valuta för pris</h2>
+      <div class="field-group">
+        <label for="currencySelect">Visa priser i</label>
+        <select id="currencySelect">
+          <option value="SEK">SEK — svenska kronor</option>
+          <option value="USD">USD — amerikanska dollar</option>
+          <option value="EUR">EUR — euro</option>
+          <option value="GBP">GBP — brittiska pund</option>
+          <option value="NOK">NOK — norska kronor</option>
+          <option value="DKK">DKK — danska kronor</option>
+        </select>
+      </div>
+
+      <h2 class="section-title">Om appen</h2>
+      <p style="font-size:11px; color:var(--cream-dim); line-height:1.7;">
+        Skivbrickan söker efter skivor via Discogs databas utifrån streckkod, etikettext eller fritext,
+        och visar ungefärliga andrahandspriser baserat på Discogs marknadsplatsdata.
+        Appen kan inte känna igen skivor enbart från ett foto av omslaget — Discogs API saknar bildsökning,
+        så etikettläsningen bygger på att läsa av text (OCR), inte visuell igenkänning.
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="disclaimer">
+    Prisdata kommer från Discogs marknadsplats och är en ungefärlig uppskattning, inte ett garanterat pris.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ===================== storage helpers ===================== */
+  async function storeGet(key){
+    try{
+      const r = await window.storage.get(key, false);
+      return r ? r.value : null;
+    }catch(e){ return null; }
+  }
+  async function storeSet(key, value){
+    try{ await window.storage.set(key, value, false); return true; }
+    catch(e){ return false; }
+  }
+  async function storeListKeys(prefix){
+    try{
+      const r = await window.storage.list(prefix, false);
+      return r ? r.keys : [];
+    }catch(e){ return []; }
+  }
+  async function storeDelete(key){
+    try{ await window.storage.delete(key, false); }catch(e){}
+  }
+
+  /* ===================== tabs ===================== */
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  const views = { scan:"view-scan", search:"view-search", history:"view-history", settings:"view-settings" };
+  tabBtns.forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      tabBtns.forEach(b=>{ b.classList.remove("active"); b.setAttribute("aria-selected","false"); });
+      btn.classList.add("active"); btn.setAttribute("aria-selected","true");
+      Object.values(views).forEach(id=> document.getElementById(id).classList.remove("active"));
+      document.getElementById(views[btn.dataset.view]).classList.add("active");
+      if(btn.dataset.view === "history") renderHistory();
+    });
+  });
+
+  /* ===================== settings ===================== */
+  const tokenInput = document.getElementById("discogsToken");
+  const tokenSaveMsg = document.getElementById("tokenSaveMsg");
+  const currencySelect = document.getElementById("currencySelect");
+  let saveTimer = null;
+
+  async function loadSettings(){
+    const t = await storeGet("settings:discogs_token");
+    if(t) tokenInput.value = t;
+    const c = await storeGet("settings:currency");
+    if(c) currencySelect.value = c;
+  }
+  tokenInput.addEventListener("input", ()=>{
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async ()=>{
+      await storeSet("settings:discogs_token", tokenInput.value.trim());
+      tokenSaveMsg.textContent = "Sparat.";
+      setTimeout(()=> tokenSaveMsg.textContent = "", 1500);
+    }, 500);
+  });
+  currencySelect.addEventListener("change", async ()=>{
+    await storeSet("settings:currency", currencySelect.value);
+  });
+
+  function getToken(){ return tokenInput.value.trim(); }
+  function getCurrency(){ return currencySelect.value || "SEK"; }
+
+  /* ===================== Discogs API ===================== */
+  const DISCOGS_BASE = "https://api.discogs.com";
+
+  async function discogsFetch(path, params){
+    const token = getToken();
+    if(!token){
+      throw new Error("NO_TOKEN");
+    }
+    const url = new URL(DISCOGS_BASE + path);
+    Object.entries(params||{}).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=="") url.searchParams.set(k,v); });
+    url.searchParams.set("token", token);
+    const res = await fetch(url.toString(), { headers:{ "Accept":"application/json" } });
+    if(res.status === 401){ throw new Error("BAD_TOKEN"); }
+    if(res.status === 429){ throw new Error("RATE_LIMIT"); }
+    if(!res.ok){ throw new Error("HTTP_" + res.status); }
+    return res.json();
+  }
+
+  async function searchByBarcode(code){
+    return discogsFetch("/database/search", { barcode: code, type:"release" });
+  }
+  async function searchByText(q){
+    return discogsFetch("/database/search", { q: q, type:"release" });
+  }
+  async function getRelease(id){
+    return discogsFetch("/releases/" + id, {});
+  }
+  async function getPriceSuggestions(id){
+    return discogsFetch("/marketplace/price_suggestions/" + id, {});
+  }
+
+  function friendlyError(err, statusEl){
+    const m = err && err.message;
+    if(m === "NO_TOKEN"){
+      statusEl.textContent = "Lägg till din Discogs-token under Inställningar först.";
+    } else if(m === "BAD_TOKEN"){
+      statusEl.textContent = "Discogs-token verkar ogiltig. Kontrollera den under Inställningar.";
+    } else if(m === "RATE_LIMIT"){
+      statusEl.textContent = "För många förfrågningar till Discogs just nu — vänta en stund.";
+    } else {
+      statusEl.textContent = "Kunde inte nå Discogs just nu. Kontrollera nätverket och försök igen.";
+    }
+    statusEl.classList.add("err");
+  }
+
+  /* ===================== result rendering ===================== */
+  function fmtMoney(v, cur){
+    if(v === undefined || v === null || isNaN(v)) return "—";
+    return v.toLocaleString("sv-SE",{maximumFractionDigits:0}) + " " + cur;
+  }
+
+  async function buildResultCard(release, priceSuggestions, currency){
+    const img = (release.images && release.images.length) ? release.images[0].uri : (release.thumb || release.cover_image || "");
+    const artists = (release.artists||[]).map(a=>a.name).join(", ") || release.artist || "Okänd artist";
+    const labelInfo = (release.labels && release.labels[0]) ? release.labels[0] : null;
+    const catno = labelInfo ? labelInfo.catno : (release.catno || "—");
+    const labelName = labelInfo ? labelInfo.name : (release.label ? (Array.isArray(release.label)? release.label[0]: release.label) : "—");
+    const formats = (release.formats||[]).map(f=>{
+      const descs = f.descriptions ? f.descriptions.join(", ") : "";
+      return [f.name, descs].filter(Boolean).join(" — ");
+    }).join(" / ") || (release.format ? (Array.isArray(release.format)? release.format.join(", ") : release.format) : "—");
+    const country = release.country || "—";
+    const year = release.year || release.released || "—";
+    const styles = (release.styles||release.style||[]).join ? (release.styles||[]).join(", ") : (release.style||"");
+    const genres = (release.genres||[]).join(", ") || (release.genre? (Array.isArray(release.genre)?release.genre.join(", "):release.genre) : "");
+    const discogsUrl = release.uri || ("https://www.discogs.com/release/" + release.id);
+
+    let priceHtml = "";
+    if(priceSuggestions){
+      const conds = ["Mint (M)","Near Mint (NM or M-)","Very Good Plus (VG+)","Very Good (VG)"];
+      const found = conds.filter(c=> priceSuggestions[c]).map(c=> ({label:c.split(" (")[0], val: priceSuggestions[c].value}));
+      if(found.length){
+        priceHtml = `
+          <div class="price-box">
+            <div class="k">Ungefärligt pris (${currency})</div>
+            <div class="price-scale">
+              ${found.slice(0,4).map(f=>`<div class="p"><div class="amt">${fmtMoney(f.val, currency)}</div><div class="lbl">${f.label}</div></div>`).join("")}
+            </div>
+            <div class="price-note">Baserat på Discogs prisförslag för denna utgåva, per skick. Faktiskt försäljningspris kan variera.</div>
+          </div>`;
+      }
+    }
+    if(!priceHtml){
+      const lowest = release.lowest_price;
+      const numFor = release.num_for_sale;
+      priceHtml = `
+        <div class="price-box">
+          <div class="k">Ungefärligt pris</div>
+          <div class="price-scale">
+            <div class="p"><div class="amt">${lowest ? fmtMoney(lowest, "USD") : "Ingen data"}</div><div class="lbl">${numFor? numFor + " till salu" : "Lägsta pris"}</div></div>
+          </div>
+          <div class="price-note">Ingen detaljerad prisuppskattning kunde hämtas för denna utgåva. Visar Discogs lägsta marknadspris (USD) om tillgängligt.</div>
+        </div>`;
+    }
+
+    return `
+      <div class="result-card">
+        ${img ? `<img class="art" src="${img}" alt="Skivomslag: ${escapeHtml(release.title||"")}" onerror="this.style.display='none'">` : `<div class="art-fallback">Ingen bild</div>`}
+        <div class="body">
+          <div class="title">${escapeHtml(release.title || "Okänd titel")}</div>
+          <div class="artist">${escapeHtml(artists)}</div>
+          <div class="data-grid">
+            <div class="field"><div class="k">År</div><div class="v">${escapeHtml(String(year))}</div></div>
+            <div class="field"><div class="k">Land</div><div class="v">${escapeHtml(String(country))}</div></div>
+            <div class="field"><div class="k">Skivbolag</div><div class="v">${escapeHtml(String(labelName))}</div></div>
+            <div class="field"><div class="k">Katalognr</div><div class="v">${escapeHtml(String(catno))}</div></div>
+            <div class="field" style="grid-column:1/-1"><div class="k">Format / utgåva</div><div class="v">${escapeHtml(String(formats))}</div></div>
+            ${(genres||styles) ? `<div class="field" style="grid-column:1/-1"><div class="k">Genre / stil</div><div class="v">${escapeHtml([genres,styles].filter(Boolean).join(" · "))}</div></div>` : ""}
+          </div>
+          ${priceHtml}
+          <a class="discogs-link" href="${discogsUrl}" target="_blank" rel="noopener">Visa på Discogs →</a>
+        </div>
+      </div>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function resolveAndRender(releaseIdOrResult, slotEl, statusEl){
+    statusEl.textContent = "";
+    slotEl.innerHTML = `<div class="status-line"><span class="spinner"></span>Hämtar detaljer…</div>`;
+    try{
+      const id = typeof releaseIdOrResult === "object" ? releaseIdOrResult.id : releaseIdOrResult;
+      const release = await getRelease(id);
+      let priceSuggestions = null;
+      try{ priceSuggestions = await getPriceSuggestions(id); }catch(e){ /* optional */ }
+      const html = await buildResultCard(release, priceSuggestions, getCurrency());
+      slotEl.innerHTML = html;
+      await saveHistory(release);
+    }catch(e){
+      slotEl.innerHTML = "";
+      friendlyError(e, statusEl);
+    }
+  }
+
+  /* ===================== history ===================== */
+  async function saveHistory(release){
+    const entry = {
+      id: release.id,
+      title: release.title,
+      artist: (release.artists||[]).map(a=>a.name).join(", ") || "",
+      year: release.year || "",
+      img: (release.images && release.images[0]) ? release.images[0].uri150 || release.images[0].uri : "",
+      ts: Date.now()
+    };
+    await storeSet("history:" + entry.ts, JSON.stringify(entry));
+  }
+
+  async function renderHistory(){
+    const el = document.getElementById("historyList");
+    el.innerHTML = `<div class="status-line"><span class="spinner"></span>Läser historik…</div>`;
+    const keys = await storeListKeys("history:");
+    if(!keys || !keys.length){
+      el.innerHTML = `<div class="empty-state">Inga sökningar ännu.<br>Skanna en streckkod eller sök en skiva så dyker den upp här.</div>`;
+      return;
+    }
+    const items = [];
+    for(const k of keys.slice(-50)){
+      try{
+        const r = await window.storage.get(k, false);
+        if(r && r.value) items.push(JSON.parse(r.value));
+      }catch(e){}
+    }
+    items.sort((a,b)=> (b.ts||0) - (a.ts||0));
+    if(!items.length){
+      el.innerHTML = `<div class="empty-state">Inga sökningar ännu.</div>`;
+      return;
+    }
+    el.innerHTML = items.map(it=>{
+      const d = it.ts ? new Date(it.ts).toLocaleString("sv-SE",{dateStyle:"short", timeStyle:"short"}) : "";
+      return `<button class="hist-item" data-relid="${it.id}">
+        ${it.img ? `<img src="${it.img}" alt="" onerror="this.style.display='none'">` : `<div style="width:46px;height:46px;background:var(--black-soft)"></div>`}
+        <div class="meta">
+          <div class="t">${escapeHtml(it.title||"Okänd titel")}</div>
+          <div class="s">${escapeHtml(it.artist||"")} ${it.year? "· "+it.year : ""}</div>
+          <div class="d">${d}</div>
+        </div>
+      </button>`;
+    }).join("");
+    el.querySelectorAll(".hist-item").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        tabBtns.forEach(b=>{ b.classList.remove("active"); b.setAttribute("aria-selected","false"); });
+        document.querySelector('.tab-btn[data-view="search"]').classList.add("active");
+        Object.values(views).forEach(id=> document.getElementById(id).classList.remove("active"));
+        document.getElementById("view-search").classList.add("active");
+        const slot = document.getElementById("searchResultSlot");
+        const status = document.getElementById("searchStatus");
+        await resolveAndRender(btn.dataset.relid, slot, status);
+      });
+    });
+  }
+
+  /* ===================== camera + barcode scanning ===================== */
+  const video = document.getElementById("video");
+  const camPlaceholder = document.getElementById("camPlaceholder");
+  const capturedImg = document.getElementById("capturedImg");
+  const discFrame = document.getElementById("discFrame");
+  const btnStartCam = document.getElementById("btnStartCam");
+  const btnStopCam = document.getElementById("btnStopCam");
+  const scanStatus = document.getElementById("scanStatus");
+  let mediaStream = null;
+  let detectRAF = null;
+  let barcodeDetector = null;
+  const SUPPORTED_FORMATS = ["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"];
+
+  function hasBarcodeDetector(){ return "BarcodeDetector" in window; }
+
+  async function startCamera(){
+    scanStatus.className = "status-line";
+    scanStatus.textContent = "";
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      scanStatus.textContent = "Kameran stöds inte i den här webbläsaren. Använd uppladdning eller manuell kod istället.";
+      scanStatus.classList.add("err");
+      return;
+    }
+    try{
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } } });
+      video.srcObject = mediaStream;
+      await video.play();
+      video.style.display = "block";
+      capturedImg.style.display = "none";
+      camPlaceholder.style.display = "none";
+      discFrame.classList.add("scanning");
+      btnStartCam.style.display = "none";
+      btnStopCam.style.display = "block";
+
+      if(hasBarcodeDetector()){
+        try{
+          barcodeDetector = new window.BarcodeDetector({ formats: SUPPORTED_FORMATS });
+          scanStatus.textContent = "Rikta kameran mot streckkoden…";
+          detectLoop();
+        }catch(e){
+          scanStatus.textContent = "Kameran är på. Skanning stöds inte automatiskt här — använd uppladdning eller manuell kod.";
+        }
+      } else {
+        scanStatus.textContent = "Automatisk avläsning stöds inte i den här webbläsaren. Använd 'ladda upp bild' eller skriv koden manuellt.";
+      }
+    }catch(e){
+      scanStatus.classList.add("err");
+      const inFrame = (window.self !== window.top);
+      let msg;
+      if(e && e.name === "NotAllowedError"){
+        msg = "Kameran nekades tillstånd. Klicka på kamera-ikonen i webbläsarens adressfält och tillåt kameran, ladda om sidan och försök igen.";
+      } else if(e && e.name === "NotFoundError"){
+        msg = "Hittade ingen kamera på den här enheten.";
+      } else if(e && e.name === "NotReadableError"){
+        msg = "Kameran används redan av en annan app. Stäng andra program/flikar som använder kameran och försök igen.";
+      } else if(inFrame){
+        msg = "Kameran startade inte i den här förhandsvisningen — det är vanligt när sidan visas inbäddad. Ladda ner filen och öppna den direkt i webbläsaren (öppna den som en egen flik/fil) för att ge kameran tillstånd.";
+      } else {
+        msg = "Kunde inte starta kameran. Kontrollera kamerabehörighet i webbläsarens inställningar.";
+      }
+      scanStatus.textContent = msg;
+    }
+  }
+
+  function stopCamera(){
+    if(detectRAF) cancelAnimationFrame(detectRAF);
+    if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream = null; }
+    video.style.display = "none";
+    camPlaceholder.style.display = "flex";
+    discFrame.classList.remove("scanning");
+    btnStartCam.style.display = "block";
+    btnStopCam.style.display = "none";
+    scanStatus.textContent = "";
+  }
+
+  async function detectLoop(){
+    if(!mediaStream || !barcodeDetector) return;
+    try{
+      const codes = await barcodeDetector.detect(video);
+      if(codes && codes.length){
+        const raw = codes[0].rawValue;
+        scanStatus.className = "status-line ok";
+        scanStatus.textContent = "Streckkod hittad: " + raw;
+        stopCamera();
+        await handleBarcode(raw);
+        return;
+      }
+    }catch(e){ /* keep trying */ }
+    detectRAF = requestAnimationFrame(detectLoop);
+  }
+
+  btnStartCam.addEventListener("click", startCamera);
+  btnStopCam.addEventListener("click", stopCamera);
+
+  async function handleBarcode(code){
+    const slot = document.getElementById("scanResultSlot");
+    scanStatus.className = "status-line";
+    scanStatus.textContent = "Söker på Discogs…";
+    slot.innerHTML = `<div class="status-line"><span class="spinner"></span>Söker…</div>`;
+    try{
+      const results = await searchByBarcode(code);
+      if(!results.results || !results.results.length){
+        slot.innerHTML = "";
+        scanStatus.textContent = "Ingen träff för den streckkoden. Prova manuell sökning istället.";
+        scanStatus.classList.add("err");
+        return;
+      }
+      scanStatus.textContent = "";
+      await resolveAndRender(results.results[0], slot, scanStatus);
+    }catch(e){
+      slot.innerHTML = "";
+      friendlyError(e, scanStatus);
+    }
+  }
+
+  document.getElementById("btnManualCode").addEventListener("click", ()=>{
+    const v = document.getElementById("manualCode").value.trim();
+    if(v) handleBarcode(v);
+  });
+  document.getElementById("manualCode").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){ document.getElementById("btnManualCode").click(); }
+  });
+
+  /* ---- upload a photo of a barcode (still image detection) ---- */
+  const fileBarcode = document.getElementById("fileBarcode");
+  document.getElementById("btnUploadBarcode").addEventListener("click", ()=> fileBarcode.click());
+  fileBarcode.addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const url = URL.createObjectURL(file);
+    capturedImg.src = url;
+    capturedImg.style.display = "block";
+    video.style.display = "none";
+    camPlaceholder.style.display = "none";
+    scanStatus.className = "status-line";
+    scanStatus.textContent = "Läser streckkod från bilden…";
+    if(hasBarcodeDetector()){
+      try{
+        const bmp = await createImageBitmap(file);
+        const det = new window.BarcodeDetector({ formats: SUPPORTED_FORMATS });
+        const codes = await det.detect(bmp);
+        if(codes && codes.length){
+          scanStatus.className = "status-line ok";
+          scanStatus.textContent = "Streckkod hittad: " + codes[0].rawValue;
+          await handleBarcode(codes[0].rawValue);
+        } else {
+          scanStatus.className = "status-line err";
+          scanStatus.textContent = "Ingen streckkod kunde läsas i bilden. Prova en skarpare bild eller skriv koden manuellt.";
+        }
+      }catch(e){
+        scanStatus.className = "status-line err";
+        scanStatus.textContent = "Kunde inte läsa streckkoden automatiskt. Skriv koden manuellt istället.";
+      }
+    } else {
+      scanStatus.className = "status-line err";
+      scanStatus.textContent = "Automatisk avläsning stöds inte i den här webbläsaren. Skriv koden manuellt.";
+    }
+  });
+
+  /* ===================== label OCR ===================== */
+  const fileLabel = document.getElementById("fileLabel");
+  const ocrStatus = document.getElementById("ocrStatus");
+  document.getElementById("btnUploadLabel").addEventListener("click", ()=> fileLabel.click());
+  fileLabel.addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    ocrStatus.className = "status-line";
+    ocrStatus.innerHTML = `<span class="spinner"></span>Läser text från etiketten…`;
+    if(typeof Tesseract === "undefined"){
+      ocrStatus.className = "status-line err";
+      ocrStatus.textContent = "Textläsaren kunde inte laddas. Skriv artist/titel manuellt under Sök istället.";
+      return;
+    }
+    try{
+      const { data } = await Tesseract.recognize(file, "eng", { logger: ()=>{} });
+      const text = (data && data.text) ? data.text.trim() : "";
+      if(!text){
+        ocrStatus.className = "status-line err";
+        ocrStatus.textContent = "Kunde inte tolka någon text. Prova en skarpare eller mer rakt vinklad bild.";
+        return;
+      }
+      const cleaned = text.replace(/\s+/g," ").split(" ").slice(0,8).join(" ");
+      ocrStatus.className = "status-line ok";
+      ocrStatus.textContent = "Text hittad — flyttar till Sök-fliken.";
+      document.querySelector('.tab-btn[data-view="search"]').click();
+      document.getElementById("searchQuery").value = cleaned;
+      document.getElementById("btnSearch").click();
+    }catch(e){
+      ocrStatus.className = "status-line err";
+      ocrStatus.textContent = "Något gick fel vid textläsningen. Prova igen eller sök manuellt.";
+    }
+  });
+
+  /* ===================== manual search ===================== */
+  const searchStatus = document.getElementById("searchStatus");
+  const candidateList = document.getElementById("candidateList");
+  const searchResultSlot = document.getElementById("searchResultSlot");
+
+  async function runSearch(){
+    const q = document.getElementById("searchQuery").value.trim();
+    if(!q) return;
+    candidateList.innerHTML = "";
+    searchResultSlot.innerHTML = "";
+    searchStatus.className = "status-line";
+    searchStatus.innerHTML = `<span class="spinner"></span>Söker…`;
+    try{
+      const results = await searchByText(q);
+      searchStatus.textContent = "";
+      if(!results.results || !results.results.length){
+        searchStatus.textContent = "Inga träffar. Prova ett annat sökord.";
+        return;
+      }
+      candidateList.innerHTML = results.results.slice(0,12).map(r=>`
+        <button class="candidate" data-relid="${r.id}">
+          ${r.thumb ? `<img src="${r.thumb}" alt="" onerror="this.style.display='none'">` : `<div style="width:44px;height:44px;background:var(--black)"></div>`}
+          <div class="meta">
+            <div class="t">${escapeHtml(r.title||"")}</div>
+            <div class="s">${escapeHtml([r.year, r.format? (Array.isArray(r.format)?r.format.join(", "):r.format):"", r.country].filter(Boolean).join(" · "))}</div>
+          </div>
+        </button>`).join("");
+      candidateList.querySelectorAll(".candidate").forEach(btn=>{
+        btn.addEventListener("click", ()=> resolveAndRender(btn.dataset.relid, searchResultSlot, searchStatus));
+      });
+    }catch(e){
+      friendlyError(e, searchStatus);
+    }
+  }
+  document.getElementById("btnSearch").addEventListener("click", runSearch);
+  document.getElementById("searchQuery").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") runSearch();
+  });
+
+  /* ===================== init ===================== */
+  loadSettings();
+})();
+</script>
+</body>
+</html>
