@@ -130,49 +130,58 @@
   /* ---------- scan viewfinder (signature element) ---------- */
   .disc-frame{
     position:relative;
-    width:min(78vw, 300px);
-    aspect-ratio:1;
+    width:100%;
+    max-width:380px;
+    aspect-ratio:4/3;
     margin:8px auto 18px;
-    border-radius:50%;
+    border-radius:10px;
     overflow:hidden;
     background:var(--black-soft);
     box-shadow: 0 0 0 1px var(--line), 0 20px 40px -20px rgba(0,0,0,0.8);
+    transition: box-shadow .2s ease;
   }
   .disc-frame video, .disc-frame img.captured{
     position:absolute; inset:0;
     width:100%; height:100%;
     object-fit:cover;
   }
-  .disc-frame .grooves{
-    position:absolute; inset:0;
-    border-radius:50%;
-    pointer-events:none;
-    background:
-      repeating-radial-gradient(circle at center,
-        rgba(0,0,0,0) 0px, rgba(0,0,0,0) 7px,
-        rgba(0,0,0,0.28) 7.5px, rgba(0,0,0,0) 8px);
-    mix-blend-mode:multiply;
-  }
-  .disc-frame .label-hole{
+  .scan-corners{ position:absolute; inset:0; pointer-events:none; }
+  .scan-corners span{
     position:absolute;
-    left:50%; top:50%;
-    width:26%; height:26%;
-    transform:translate(-50%,-50%);
-    border-radius:50%;
+    width:26px; height:26px;
+    border-color:var(--gold);
+    opacity:0.9;
+  }
+  .scan-corners span:nth-child(1){ top:10px; left:10px; border-top:3px solid; border-left:3px solid; }
+  .scan-corners span:nth-child(2){ top:10px; right:10px; border-top:3px solid; border-right:3px solid; }
+  .scan-corners span:nth-child(3){ bottom:10px; left:10px; border-bottom:3px solid; border-left:3px solid; }
+  .scan-corners span:nth-child(4){ bottom:10px; right:10px; border-bottom:3px solid; border-right:3px solid; }
+  .scan-line{
+    position:absolute; left:6%; right:6%; top:12%;
+    height:2px;
     background:var(--red);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 0 0 2px var(--black), 0 0 0 3px rgba(242,233,216,0.2);
+    box-shadow:0 0 10px 1px rgba(178,58,46,0.7);
+    opacity:0;
+    pointer-events:none;
   }
-  .disc-frame .label-hole::after{
-    content:"";
-    width:14%; height:14%;
-    min-width:6px; min-height:6px;
-    border-radius:50%;
-    background:var(--black);
+  .disc-frame.scanning .scan-line{
+    opacity:1;
+    animation: scanmove 2.1s ease-in-out infinite;
   }
-  .disc-frame.scanning .grooves{ animation:spin 3.2s linear infinite; }
+  @keyframes scanmove{ 0%{ top:12%; } 50%{ top:86%; } 100%{ top:12%; } }
   @keyframes spin{ to{ transform:rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce){ .disc-frame.scanning .grooves{ animation:none; } }
+  @media (prefers-reduced-motion: reduce){ .disc-frame.scanning .scan-line{ animation:none; opacity:0.7; top:50%; } }
+
+  .disc-frame.detected{
+    box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--green), 0 20px 40px -20px rgba(0,0,0,0.8);
+  }
+  .disc-frame.detected::after{
+    content:"";
+    position:absolute; inset:0;
+    background:rgba(76,122,94,0.28);
+    animation: detectflash .6s ease forwards;
+  }
+  @keyframes detectflash{ from{ opacity:1; } to{ opacity:0; } }
 
   .disc-frame .placeholder{
     position:absolute; inset:0;
@@ -387,8 +396,8 @@
         <div class="placeholder" id="camPlaceholder">Kameran är av</div>
         <video id="video" playsinline muted style="display:none"></video>
         <img class="captured" id="capturedImg" style="display:none" alt="">
-        <div class="grooves"></div>
-        <div class="label-hole"></div>
+        <div class="scan-line"></div>
+        <div class="scan-corners" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
       </div>
 
       <div class="scan-controls">
@@ -821,7 +830,13 @@
         const raw = codes[0].rawValue;
         scanStatus.className = "status-line ok";
         scanStatus.textContent = "Streckkod hittad: " + raw;
-        stopCamera();
+        discFrame.classList.add("detected");
+        if(navigator.vibrate) navigator.vibrate(80);
+        if(detectRAF) cancelAnimationFrame(detectRAF);
+        setTimeout(()=>{
+          discFrame.classList.remove("detected");
+          stopCamera();
+        }, 350);
         await handleBarcode(raw);
         return;
       }
